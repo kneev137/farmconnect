@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Products - FarmConnect{% endblock %}
+{% block content %}
+<h1>Fresh Products</h1>
+<div>
+    {% for product in products %}
+    <div style="border:1px solid #ccc; padding:15px; margin-bottom:10px;">
+        <h3>{{ product.name }}</h3>
+        <p>From: {{ product.farm.farmer.farm_name }} ({{ product.farm.name }})</p>
+        <p>Price: ₹{{ product.price_per_unit }} / {{ product.unit }}</p>
+        <p>{{ product.description }}</p>
+    </div>
+    {% empty %}
+    <p>No products available yet.</p>
+    {% endfor %}
+</div>
+{% endblock %}
