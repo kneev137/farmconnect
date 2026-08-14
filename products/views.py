@@ -1,10 +1,24 @@
-from django.shortcuts import render
+from rest_framework import viewsets, permissions
+from django_filters.rest_framework import DjangoFilterBackend
+from .models import Product, Inventory, HarvestRecord
+from .serializers import ProductSerializer, InventorySerializer, HarvestRecordSerializer
+from .permissions import IsFarmOwnerOrReadOnly
 
-# Create your views here.
-from django.shortcuts import render
-from .models import Product
+
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.select_related('farm', 'farm__farmer', 'inventory').filter(is_active=True)
+    serializer_class = ProductSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsFarmOwnerOrReadOnly]
+    filterset_fields = ['category', 'farm']
 
 
-def product_list(request):
-    products = Product.objects.filter(is_active=True).select_related('farm', 'farm__farmer')
-    return render(request, 'products/product_list.html', {'products': products})
+class InventoryViewSet(viewsets.ModelViewSet):
+    queryset = Inventory.objects.all()
+    serializer_class = InventorySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class HarvestRecordViewSet(viewsets.ModelViewSet):
+    queryset = HarvestRecord.objects.all()
+    serializer_class = HarvestRecordSerializer
+    permission_classes = [permissions.IsAuthenticated]

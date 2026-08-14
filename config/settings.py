@@ -43,7 +43,19 @@ INSTALLED_APPS = [
     'products',
     'orders',
     'reviews',
+    'rest_framework',
+    'django_filters'
 ]
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    ),
+    'DEFAULT_FILTER_BACKENDS': ('django_filters.rest_framework.DjangoFilterBackend',),
+}
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -136,5 +148,7 @@ MAILERS = {
     },
 }
 AUTH_USER_MODEL = 'accounts.User'
+LOGIN_REDIRECT_URL = 'home'
+LOGIN_URL = 'login'
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
