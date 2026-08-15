@@ -1,0 +1,53 @@
+/* Navbar enhancements */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-xs);
+}
+
+.site-header__inner {
+  height: 72px;
+}
+
+.brand-logo__icon {
+  background-color: var(--primary);
+  color: #fff;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-logo__name {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--primary);
+  letter-spacing: -0.02em;
+}
+
+.brand-logo__accent {
+  color: var(--secondary);
+}
+
+.brand-logo__tagline {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-top: -3px;
+}
+
+.dropdown-item:hover {
+  background-color: var(--surface-subtle);
+}
+
+@media (min-width: 768px) {
+  .md-search-show {
+    display: block !important;
+  }
+}

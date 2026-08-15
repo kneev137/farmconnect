@@ -1,0 +1,118 @@
+/* Auth Pages */
+
+.auth-page {
+  min-height: calc(100vh - 72px - 120px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: linear-gradient(160deg, var(--primary-subtle) 0%, var(--surface-alt) 40%, var(--surface) 100%);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 32px;
+}
+
+.auth-card--wide {
+  max-width: 520px;
+}
+
+.auth-card__brand {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.auth-card__logo {
+  width: 52px;
+  height: 52px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-submit {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.auth-switch {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.auth-switch a {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.auth-switch a:hover {
+  text-decoration: underline;
+}
+
+.auth-error {
+  color: var(--warning);
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 8px 12px;
+  background: var(--warning-bg);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+
+.auth-success {
+  color: var(--success);
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 8px 12px;
+  background: var(--success-bg);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+
+.auth-role-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.auth-role-btn {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.auth-role-btn--active {
+  border-color: var(--primary);
+  background: var(--primary-subtle);
+  color: var(--primary);
+}
+
+.auth-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+}
+
+@media (max-width: 480px) {
+  .auth-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
