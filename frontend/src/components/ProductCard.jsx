@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { mediaUrl } from '../services/api';
@@ -12,6 +12,7 @@ import {
 export default function ProductCard({ product, onShowTransparency }) {
   const { addToCart } = useCart();
   const { isAuthenticated, isFarmer } = useAuth();
+  const navigate = useNavigate();
   const [adding, setAdding] = useState(false);
   const [addedSuccess, setAddedSuccess] = useState(false);
 
@@ -29,6 +30,8 @@ export default function ProductCard({ product, onShowTransparency }) {
     if (res.success) {
       setAddedSuccess(true);
       setTimeout(() => setAddedSuccess(false), 2000);
+    } else if (res.requireAuth) {
+      navigate(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
     } else {
       alert(res.error || 'Failed to add to cart');
     }

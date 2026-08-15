@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, ShoppingBag, MapPin, Star, Leaf,
   CheckCircle2, Info, Minus, Plus, Sprout, Clock,
@@ -62,6 +62,8 @@ export default function ProductDetail() {
   const isOutOfStock = stock <= 0;
   const imageSrc = mediaUrl(product.image);
 
+  const navigate = useNavigate();
+
   const handleAddToCart = async () => {
     if (isOutOfStock || isFarmer) return;
     setAdding(true);
@@ -70,6 +72,8 @@ export default function ProductDetail() {
     if (res.success) {
       setAddedSuccess(true);
       setTimeout(() => setAddedSuccess(false), 2500);
+    } else if (res.requireAuth) {
+      navigate(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
     } else {
       alert(res.error || 'Failed to add to cart');
     }

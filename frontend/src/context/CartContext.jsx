@@ -5,7 +5,7 @@ import { useAuth } from './AuthContext';
 const CartContext = createContext(null);
 
 export const CartProvider = ({ children }) => {
-  const { isAuthenticated, isConsumer } = useAuth();
+  const { isAuthenticated, isConsumer, isFarmer } = useAuth();
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -31,6 +31,21 @@ export const CartProvider = ({ children }) => {
   }, [isAuthenticated, isConsumer]);
 
   const addToCart = async (productId, quantity = 1) => {
+    if (!isAuthenticated) {
+      return { 
+        success: false, 
+        requireAuth: true, 
+        error: 'Please sign in as a consumer to add fresh produce to your cart.' 
+      };
+    }
+
+    if (isFarmer) {
+      return { 
+        success: false, 
+        error: 'Farmers cannot add items to cart. Please log in as a Consumer to place orders.' 
+      };
+    }
+
     try {
       await api.post('/cart-items/', { product: productId, quantity });
       await fetchCart();
@@ -102,7 +117,7 @@ export const CartProvider = ({ children }) => {
     updateQuantity,
     removeFromCart,
     clearCart,
-    checkout
+    checkout,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
