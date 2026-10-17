@@ -2,6 +2,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 from .models import Cart, CartItem, Order, OrderItem, Payment, Delivery
+from accounts.models import Consumer
 from products.models import Product, Inventory
 from products.serializers import ProductSerializer
 
@@ -131,14 +132,13 @@ class CheckoutSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         request = self.context['request']
-        if not hasattr(request.user, 'consumer_profile'):
-            raise serializers.ValidationError("Only consumers can perform checkout.")
+        consumer, _ = Consumer.objects.get_or_create(user=request.user)
 
-        consumer = request.user.consumer_profile
         try:
             cart = Cart.objects.get(consumer=consumer)
         except Cart.DoesNotExist:
             raise serializers.ValidationError("Cart not found.")
+
 
         items = list(cart.items.select_related('product').all())
         if not items:
@@ -206,5 +206,17 @@ class CheckoutSerializer(serializers.Serializer):
             if not consumer.default_delivery_address:
                 consumer.default_delivery_address = validated_data['address']
                 consumer.save()
+
+            # Ensure an Address entry exists for the user if they don't have any
+            if not request.user.addresses.exists() and validated_data.get('address'):
+                from accounts.models import Address
+                Address.objects.create(
+                    user=request.user,
+                    address_type='home',
+                    recipient_name=request.user.get_full_name() or request.user.username,
+                    phone_number=request.user.phone_number,
+                    street_address=validated_data['address'],
+                    is_default=True
+                )
 
             return order

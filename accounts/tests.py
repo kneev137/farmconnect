@@ -31,6 +31,34 @@ class AccountsAPITests(TestCase):
         self.assertTrue(hasattr(user, 'consumer_profile'))
         self.assertEqual(user.consumer_profile.default_delivery_address, '123 Green St, Cityville')
 
+    def test_register_password_mismatch(self):
+        payload = {
+            'username': 'mismatch_user',
+            'email': 'mismatch@example.com',
+            'password': 'SecurePassword123!',
+            'confirm_password': 'DifferentPassword456!',
+            'role': 'consumer',
+        }
+        response = self.client.post(self.register_url, payload)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('confirm_password', response.data)
+
+    def test_register_with_confirm_password(self):
+        payload = {
+            'username': 'verified_user',
+            'email': 'verified@example.com',
+            'password': 'SecurePassword123!',
+            'confirm_password': 'SecurePassword123!',
+            'role': 'consumer',
+        }
+        res = self.client.post(self.register_url, payload)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        user = User.objects.get(username='verified_user')
+        self.assertTrue(user.is_email_verified)
+
+
+
+
     def test_register_farmer(self):
         payload = {
             'username': 'farmer_bob',
@@ -104,3 +132,67 @@ class AccountsAPITests(TestCase):
         self.assertEqual(res2.status_code, status.HTTP_200_OK)
         user.refresh_from_db()
         self.assertTrue(user.check_password('BrandNewPassword123!'))
+
+    def test_multiple_addresses_management(self):
+        user = User.objects.create_user(
+            username='multi_addr_user',
+            password='TestPassword123!',
+            role='consumer'
+        )
+        self.client.force_authenticate(user=user)
+
+        # 1. Add 'Home' address
+        res1 = self.client.post('/api/addresses/', {
+            'address_type': 'home',
+            'recipient_name': 'Multi User',
+            'phone_number': '9876543210',
+            'street_address': 'Flat 101, Sunshine Apts',
+            'city': 'Bengaluru',
+            'state': 'Karnataka',
+            'postal_code': '560001',
+            'landmark': 'Near Metro Station'
+        })
+        self.assertEqual(res1.status_code, status.HTTP_201_CREATED)
+        # First address should automatically be default
+        self.assertTrue(res1.data['is_default'])
+        home_id = res1.data['id']
+
+        # 2. Add 'Office' address
+        res2 = self.client.post('/api/addresses/', {
+            'address_type': 'office',
+            'recipient_name': 'Multi User (Work)',
+            'phone_number': '9876543210',
+            'street_address': 'Tech Park 4th Floor',
+            'city': 'Bengaluru',
+            'state': 'Karnataka',
+            'postal_code': '560100',
+            'is_default': False
+        })
+        self.assertEqual(res2.status_code, status.HTTP_201_CREATED)
+        office_id = res2.data['id']
+
+        # 3. Add 'Other' address
+        res3 = self.client.post('/api/addresses/', {
+            'address_type': 'other',
+            'recipient_name': "Parents' Home",
+            'street_address': '45 Green Meadows',
+            'city': 'Mysuru',
+            'state': 'Karnataka',
+            'postal_code': '570001'
+        })
+        self.assertEqual(res3.status_code, status.HTTP_201_CREATED)
+
+        # Verify 3 addresses exist
+        list_res = self.client.get('/api/addresses/')
+        self.assertEqual(list_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(list_res.data), 3)
+
+        # 4. Set Office as default
+        set_default_res = self.client.post(f'/api/addresses/{office_id}/set-default/')
+        self.assertEqual(set_default_res.status_code, status.HTTP_200_OK)
+        self.assertTrue(set_default_res.data['is_default'])
+
+        # Verify old home address is no longer default
+        res_home = self.client.get(f'/api/addresses/{home_id}/')
+        self.assertFalse(res_home.data['is_default'])
+

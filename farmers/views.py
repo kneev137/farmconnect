@@ -25,10 +25,29 @@ class FarmViewSet(viewsets.ModelViewSet):
     """
     Allows farmers to manage their farms.
     """
-    queryset = Farm.objects.select_related('farmer__user').all()
     serializer_class = FarmSerializer
     permission_classes = [IsFarmerOrReadOnly, IsOwnerOrReadOnly]
     search_fields = ['name', 'location', 'description']
+
+    def get_queryset(self):
+        user = self.request.user
+        # If authenticated farmer, only return their own farms
+        if user.is_authenticated and hasattr(user, 'farmer_profile'):
+            if self.request.query_params.get('all') == 'true':
+                return Farm.objects.select_related('farmer__user').all()
+            farmer = user.farmer_profile
+            qs = Farm.objects.filter(farmer=farmer).select_related('farmer__user')
+            # If this farmer account doesn't have a Farm record yet, auto-create a default farm
+            if not qs.exists():
+                Farm.objects.create(
+                    farmer=farmer,
+                    name=farmer.farm_name or f"{user.username}'s Farm",
+                    location="Main Farm Location",
+                    description=f"Primary farm for {farmer.farm_name or user.username}."
+                )
+                qs = Farm.objects.filter(farmer=farmer).select_related('farmer__user')
+            return qs
+        return Farm.objects.select_related('farmer__user').all()
 
     def perform_create(self, serializer):
         if not hasattr(self.request.user, 'farmer_profile'):

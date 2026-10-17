@@ -14,10 +14,23 @@ class Farmer(models.Model):
         return self.farm_name
 
 
+class City(models.Model):
+    name = models.CharField(max_length=100)
+    state = models.CharField(max_length=100)
+
+    class Meta:
+        unique_together = ('name', 'state')
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name}, {self.state}"
+
+
 class Farm(models.Model):
     farmer = models.ForeignKey(Farmer, on_delete=models.CASCADE, related_name='farms')
     name = models.CharField(max_length=150)
-    location = models.CharField(max_length=255)
+    city = models.ForeignKey(City, on_delete=models.SET_NULL, null=True, blank=True, related_name='farms')
+    location = models.CharField(max_length=255, help_text="Specific street / locality address")
     size_acres = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     description = models.TextField(blank=True)
     image = models.ImageField(upload_to='farms/', blank=True, null=True)
@@ -25,3 +38,4 @@ class Farm(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.farmer.farm_name})"
+

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -7,9 +7,123 @@ import {
   ArrowRight, ShieldCheck, Sparkles 
 } from 'lucide-react';
 
+function CartItemRow({ item, updateQuantity, removeFromCart }) {
+  const [localQty, setLocalQty] = useState(item.quantity);
+
+  useEffect(() => {
+    setLocalQty(item.quantity);
+  }, [item.quantity]);
+
+  const handleBlur = () => {
+    let parsed = parseFloat(localQty);
+    if (isNaN(parsed) || parsed <= 0) {
+      removeFromCart(item.id);
+    } else if (parsed !== parseFloat(item.quantity)) {
+      updateQuantity(item.id, parsed);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.target.blur();
+    }
+  };
+
+  return (
+    <div
+      className="card flex items-center justify-between"
+      style={{ padding: '12px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--surface-alt)' }}
+    >
+      <div style={{ flex: 1 }}>
+        <h4 style={{ fontSize: '0.9rem', fontWeight: 700, textTransform: 'capitalize' }}>
+          {item.product_name}
+        </h4>
+        <span className="text-muted text-xs">
+          ₹{parseFloat(item.price_per_unit).toFixed(2)} / {item.unit}
+        </span>
+        <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--primary)', marginTop: '4px' }}>
+          ₹{item.item_total ? item.item_total.toFixed(2) : (item.quantity * item.price_per_unit).toFixed(2)}
+        </div>
+      </div>
+
+      {/* Quantity Controller */}
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1" style={{
+          backgroundColor: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-sm)',
+          padding: '2px 4px'
+        }}>
+          <button
+            onClick={() => {
+              const current = parseFloat(item.quantity) || 1;
+              const step = current <= 1 ? 0.25 : 1;
+              const next = parseFloat((current - step).toFixed(3));
+              if (next <= 0) removeFromCart(item.id);
+              else updateQuantity(item.id, next);
+            }}
+            className="btn-icon"
+            style={{ padding: '3px', color: 'var(--text-secondary)' }}
+            title="Decrease quantity"
+          >
+            <Minus size={14} />
+          </button>
+
+          {/* Typable Quantity Input */}
+          <input
+            type="number"
+            min="0.001"
+            step="any"
+            value={localQty}
+            onChange={(e) => setLocalQty(e.target.value)}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            style={{
+              width: '56px',
+              textAlign: 'center',
+              fontSize: '0.85rem',
+              fontWeight: 800,
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--text-main)',
+              outline: 'none',
+              padding: '0 2px'
+            }}
+            title="Type custom quantity (e.g. 1.5, 0.5, 0.25)"
+          />
+
+          <button
+            onClick={() => {
+              const current = parseFloat(item.quantity) || 0;
+              const step = current < 1 ? 0.25 : 1;
+              const next = parseFloat((current + step).toFixed(3));
+              updateQuantity(item.id, next);
+            }}
+            className="btn-icon"
+            style={{ padding: '3px', color: 'var(--text-secondary)' }}
+            title="Increase quantity"
+          >
+            <Plus size={14} />
+          </button>
+        </div>
+
+        {/* Trash Button */}
+        <button
+          onClick={() => removeFromCart(item.id)}
+          className="btn-icon"
+          style={{ color: 'var(--warning)', padding: '6px' }}
+          title="Remove item"
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function CartDrawer() {
   const { cart, isCartOpen, closeCart, updateQuantity, removeFromCart, clearCart, grandTotal } = useCart();
-  const { isAuthenticated, isConsumer } = useAuth();
+  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   if (!isCartOpen) return null;
@@ -66,67 +180,18 @@ export default function CartDrawer() {
           ) : (
             <div className="flex flex-col gap-3">
               {cart.items.map((item) => (
-                <div
+                <CartItemRow
                   key={item.id}
-                  className="card flex items-center justify-between"
-                  style={{ padding: '12px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--surface-alt)' }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <h4 style={{ fontSize: '0.9rem', fontWeight: 700, textTransform: 'capitalize' }}>
-                      {item.product_name}
-                    </h4>
-                    <span className="text-muted text-xs">
-                      ₹{parseFloat(item.price_per_unit).toFixed(2)} / {item.unit}
-                    </span>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--primary)', marginTop: '4px' }}>
-                      ₹{item.item_total ? item.item_total.toFixed(2) : (item.quantity * item.price_per_unit).toFixed(2)}
-                    </div>
-                  </div>
-
-                  {/* Quantity Controller */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1" style={{
-                      backgroundColor: 'var(--surface)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 'var(--radius-sm)',
-                      padding: '2px'
-                    }}>
-                      <button
-                        onClick={() => updateQuantity(item.id, parseFloat(item.quantity) - 1)}
-                        className="btn-icon"
-                        style={{ padding: '4px', color: 'var(--text-secondary)' }}
-                      >
-                        <Minus size={14} />
-                      </button>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700, minWidth: '24px', textAlign: 'center' }}>
-                        {item.quantity}
-                      </span>
-                      <button
-                        onClick={() => updateQuantity(item.id, parseFloat(item.quantity) + 1)}
-                        className="btn-icon"
-                        style={{ padding: '4px', color: 'var(--text-secondary)' }}
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-
-                    {/* Trash Button */}
-                    <button
-                      onClick={() => removeFromCart(item.id)}
-                      className="btn-icon"
-                      style={{ color: 'var(--warning)', padding: '6px' }}
-                      title="Remove item"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
+                  item={item}
+                  updateQuantity={updateQuantity}
+                  removeFromCart={removeFromCart}
+                />
               ))}
 
               <div style={{ textAlign: 'right', marginTop: '4px' }}>
                 <button
                   onClick={clearCart}
-                  style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textDecoration: 'underline' }}
+                  style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer' }}
                 >
                   Clear all items
                 </button>

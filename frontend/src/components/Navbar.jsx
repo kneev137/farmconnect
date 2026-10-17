@@ -4,17 +4,21 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { 
   Sprout, ShoppingBag, User, LogOut, LayoutDashboard, 
-  PackageCheck, LogIn, UserPlus, Store 
+  PackageCheck, LogIn, UserPlus, Store, Mail, Phone, MapPin, Shield, Calendar,
+  Home, Briefcase, Plus
 } from 'lucide-react';
+import AddressModal from './AddressModal';
+
 
 export default function Navbar() {
-  const { user, isAuthenticated, isFarmer, isConsumer, logout } = useAuth();
+  const { user, isAuthenticated, isFarmer, isConsumer, logout, refreshUser } = useAuth();
   const { cartCount, openCart } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
   const isHomePage = location.pathname === '/';
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [addressModalOpen, setAddressModalOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -33,7 +37,8 @@ export default function Navbar() {
   };
 
   return (
-    <header style={{
+    <>
+      <header style={{
       position: 'sticky',
       top: 0,
       zIndex: 100,
@@ -81,7 +86,7 @@ export default function Navbar() {
             <span>Marketplace</span>
           </Link>
 
-          {isAuthenticated && isConsumer && (
+          {isAuthenticated && (
             <Link to="/orders" className="btn btn-outline btn-sm" style={{ border: 'none', gap: '6px' }}>
               <PackageCheck size={16} />
               <span>My Orders</span>
@@ -95,23 +100,23 @@ export default function Navbar() {
             </Link>
           )}
 
-          {/* Cart Trigger (For Consumers or Guests) */}
-          {(!isAuthenticated || isConsumer) && (
-            <button
-              onClick={openCart}
-              className="btn btn-secondary btn-sm"
-              style={{
-                position: 'relative',
-                padding: '8px 16px',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: 'var(--primary-subtle)',
-                color: 'var(--primary)',
-                fontWeight: 700
-              }}
-              title="Open Shopping Cart"
-            >
-              <ShoppingBag size={18} />
-              <span>Cart</span>
+          {/* Cart Trigger (For All Users) */}
+          <button
+            onClick={openCart}
+            className="btn btn-secondary btn-sm"
+            style={{
+              position: 'relative',
+              padding: '8px 16px',
+              borderRadius: 'var(--radius-full)',
+              backgroundColor: 'var(--primary-subtle)',
+              color: 'var(--primary)',
+              fontWeight: 700
+            }}
+            title="Open Shopping Cart"
+          >
+            <ShoppingBag size={18} />
+            <span>Cart</span>
+
               {cartCount > 0 && (
                 <span style={{
                   backgroundColor: 'var(--warning)',
@@ -126,9 +131,9 @@ export default function Navbar() {
                 </span>
               )}
             </button>
-          )}
 
           {/* Auth Menu */}
+
           {isAuthenticated ? (
             <div style={{ position: 'relative' }}>
               <button
@@ -162,7 +167,7 @@ export default function Navbar() {
                   position: 'absolute',
                   right: 0,
                   top: '115%',
-                  width: '200px',
+                  width: '280px',
                   backgroundColor: 'var(--surface)',
                   border: '1px solid var(--border)',
                   borderRadius: 'var(--radius-md)',
@@ -170,13 +175,140 @@ export default function Navbar() {
                   padding: '8px 0',
                   zIndex: 200
                 }}>
-                  <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{user?.username}</div>
-                    <span className="badge badge-category" style={{ fontSize: '0.7rem', marginTop: '4px' }}>
-                      {user?.role?.toUpperCase()}
-                    </span>
+                  {/* Account Header */}
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', backgroundColor: 'var(--surface-subtle)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>{user?.username}</div>
+                      <span className="badge badge-category" style={{ fontSize: '0.68rem', padding: '3px 8px' }}>
+                        {user?.role?.toUpperCase()}
+                      </span>
+                    </div>
+                    {user?.farmer_profile?.farm_name && (
+                      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--primary)' }}>
+                        🌿 {user.farmer_profile.farm_name}
+                      </div>
+                    )}
                   </div>
 
+                  {/* Account Details Section */}
+                  <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ fontWeight: 800, color: 'var(--text-muted)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Account Details
+                    </div>
+
+                    {user?.email && (
+                      <div className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
+                        <Mail size={13} style={{ flexShrink: 0, color: 'var(--primary)' }} />
+                        <span style={{ wordBreak: 'break-all' }}>{user.email}</span>
+                      </div>
+                    )}
+
+                    {user?.phone_number && (
+                      <div className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
+                        <Phone size={13} style={{ flexShrink: 0, color: 'var(--primary)' }} />
+                        <span>{user.phone_number}</span>
+                      </div>
+                    )}
+
+                    {/* Saved Addresses Section (Swiggy / Blinkit style) */}
+                    <div style={{ marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)' }}>
+                          SAVED ADDRESSES ({user?.addresses?.length || 0})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDropdownOpen(false);
+                            setAddressModalOpen(true);
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--primary)',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '2px',
+                            padding: 0
+                          }}
+                        >
+                          <Plus size={12} /> Manage
+                        </button>
+                      </div>
+
+                      {user?.addresses && user.addresses.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                          {user.addresses.slice(0, 3).map((addr) => (
+                            <div
+                              key={addr.id}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: '6px',
+                                backgroundColor: addr.is_default ? 'var(--primary-subtle)' : 'var(--surface)',
+                                border: '1px solid var(--border)',
+                                borderRadius: '6px',
+                                padding: '5px 8px',
+                              }}
+                            >
+                              <div style={{ marginTop: '2px', color: 'var(--primary)' }}>
+                                {addr.address_type === 'home' ? (
+                                  <Home size={12} />
+                                ) : addr.address_type === 'office' ? (
+                                  <Briefcase size={12} />
+                                ) : (
+                                  <MapPin size={12} />
+                                )}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-main)' }}>
+                                    {addr.address_type}
+                                  </span>
+                                  {addr.is_default && (
+                                    <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--primary)' }}>
+                                      • Default
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {addr.street_address}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {user.addresses.length > 3 && (
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textAlign: 'right' }}>
+                              +{user.addresses.length - 3} more saved
+                            </div>
+                          )}
+                        </div>
+                      ) : user?.consumer_profile?.default_delivery_address ? (
+                        <div className="flex items-start gap-2" style={{ color: 'var(--text-secondary)' }}>
+                          <MapPin size={13} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--primary)' }} />
+                          <span style={{ fontSize: '0.76rem', lineHeight: 1.3 }}>
+                            {user.consumer_profile.default_delivery_address}
+                          </span>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                          No saved addresses yet.
+                        </div>
+                      )}
+                    </div>
+
+                    {user?.created_at && (
+                      <div className="flex items-center gap-2" style={{ color: 'var(--text-muted)', fontSize: '0.74rem', marginTop: '2px' }}>
+                        <Calendar size={13} style={{ flexShrink: 0 }} />
+                        <span>Member since {new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Navigation Links */}
                   {isFarmer && (
                     <Link
                       to="/farmer/dashboard"
@@ -191,47 +323,50 @@ export default function Navbar() {
                       }}
                       className="dropdown-item"
                     >
-                      <LayoutDashboard size={16} /> Farmer Portal
+                      <LayoutDashboard size={16} color="var(--primary)" /> Farmer Portal
                     </Link>
                   )}
 
-                  {isConsumer && (
-                    <Link
-                      to="/orders"
-                      onClick={() => setDropdownOpen(false)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '10px 16px',
-                        fontSize: '0.85rem',
-                        color: 'var(--text-main)',
-                      }}
-                      className="dropdown-item"
-                    >
-                      <PackageCheck size={16} /> Order History
-                    </Link>
-                  )}
-
-                  <button
-                    onClick={handleLogout}
+                  <Link
+                    to="/orders"
+                    onClick={() => setDropdownOpen(false)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '8px',
-                      width: '100%',
                       padding: '10px 16px',
                       fontSize: '0.85rem',
-                      color: 'var(--warning)',
-                      textAlign: 'left'
+                      color: 'var(--text-main)',
                     }}
                     className="dropdown-item"
                   >
-                    <LogOut size={16} /> Sign Out
-                  </button>
+                    <PackageCheck size={16} color="var(--primary)" /> Order History
+                  </Link>
+
+                  {/* Sign Out Button */}
+                  <div style={{ borderTop: '1px solid var(--border)', marginTop: '4px' }}>
+                    <button
+                      onClick={handleLogout}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        width: '100%',
+                        padding: '10px 16px',
+                        fontSize: '0.85rem',
+                        color: 'var(--warning)',
+                        textAlign: 'left',
+                        fontWeight: 700
+                      }}
+                      className="dropdown-item"
+                    >
+                      <LogOut size={16} /> Sign Out
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
+
           ) : (
             <div className="flex items-center gap-2">
               <Link to="/login" className="btn btn-outline btn-sm">
@@ -242,9 +377,21 @@ export default function Navbar() {
               </Link>
             </div>
           )}
-
         </div>
       </div>
-    </header>
+
+      </header>
+
+      {/* Address Management Modal (Swiggy / Blinkit style) */}
+      <AddressModal
+        isOpen={addressModalOpen}
+        onClose={() => setAddressModalOpen(false)}
+        addresses={user?.addresses || []}
+        selectedAddressId={user?.addresses?.find((a) => a.is_default)?.id}
+        onAddressesUpdated={async () => {
+          if (refreshUser) await refreshUser();
+        }}
+      />
+    </>
   );
 }

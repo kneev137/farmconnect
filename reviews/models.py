@@ -17,6 +17,12 @@ class Review(models.Model):
 
     class Meta:
         unique_together = ('product', 'consumer')
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(rating__gte=1) & models.Q(rating__lte=5),
+                name='chk_review_rating_1_to_5'
+            )
+        ]
 
     def __str__(self):
-        return f"{self.rating}★ - {self.product.name} by {self.consumer.user.username}"
+        return f"{self.rating}★ - {self.product.name} by {self.consumer.user.username}"

@@ -1,5 +1,7 @@
 import django_filters
+from django.db import models
 from rest_framework import viewsets, permissions, generics, exceptions, filters
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Product, Inventory, HarvestRecord
 from .serializers import ProductSerializer, InventorySerializer, HarvestRecordSerializer
@@ -32,6 +34,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.select_related('farm__farmer__user', 'inventory').prefetch_related('reviews').all()
     serializer_class = ProductSerializer
     permission_classes = [IsFarmerOrReadOnly, IsFarmOwnerOrReadOnly]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = ProductFilter
     search_fields = ['name', 'description', 'farm__name', 'farm__farmer__farm_name', 'farm__location']
@@ -40,10 +43,16 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        # Annotate aggregate review stats to eliminate N+1 queries
+        qs = qs.annotate(
+            annotated_avg_rating=models.Avg('reviews__rating'),
+            annotated_review_count=models.Count('reviews')
+        )
         # For anonymous users or general catalog, only show active products by default
         if self.action == 'list' and not self.request.query_params.get('include_inactive'):
             return qs.filter(is_active=True)
         return qs
+
 
     def perform_create(self, serializer):
         if not hasattr(self.request.user, 'farmer_profile'):

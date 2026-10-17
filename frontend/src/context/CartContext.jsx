@@ -11,7 +11,7 @@ export const CartProvider = ({ children }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   const fetchCart = async () => {
-    if (!isAuthenticated || !isConsumer) {
+    if (!isAuthenticated) {
       setCart(null);
       return;
     }
@@ -28,23 +28,17 @@ export const CartProvider = ({ children }) => {
 
   useEffect(() => {
     fetchCart();
-  }, [isAuthenticated, isConsumer]);
+  }, [isAuthenticated]);
 
   const addToCart = async (productId, quantity = 1) => {
     if (!isAuthenticated) {
       return { 
         success: false, 
         requireAuth: true, 
-        error: 'Please sign in as a consumer to add fresh produce to your cart.' 
+        error: 'Please sign in to add fresh produce to your cart.' 
       };
     }
 
-    if (isFarmer) {
-      return { 
-        success: false, 
-        error: 'Farmers cannot add items to cart. Please log in as a Consumer to place orders.' 
-      };
-    }
 
     try {
       await api.post('/cart-items/', { product: productId, quantity });

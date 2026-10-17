@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, Banknote, Smartphone, ShieldCheck, ArrowRight } from 'lucide-react';
+import { CreditCard, Banknote, Smartphone, ShieldCheck, ArrowRight, Home, Briefcase, MapPin, Plus, Check } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import AddressModal from '../components/AddressModal';
 import api from '../services/api';
 import '../styles/cart.css';
 
@@ -14,9 +15,15 @@ const PAYMENT_METHODS = [
 
 export default function Checkout() {
   const { cart, grandTotal, checkout } = useCart();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
-  const [address, setAddress] = useState(user?.consumer_profile?.default_delivery_address || '');
+
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddress, setSelectedAddress] = useState(null);
+  const [customAddress, setCustomAddress] = useState('');
+  const [useCustomAddress, setUseCustomAddress] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -24,16 +31,61 @@ export default function Checkout() {
   const farmerShare = (grandTotal * 0.9).toFixed(2);
   const platformFee = (grandTotal * 0.1).toFixed(2);
 
+  const loadAddresses = async () => {
+    try {
+      const data = await api.get('/addresses/');
+      const list = Array.isArray(data) ? data : data?.results || [];
+      setAddresses(list);
+
+      // Default selection logic: Pick default address or first address
+      if (list.length > 0) {
+        const defaultAddr = list.find((a) => a.is_default) || list[0];
+        setSelectedAddress((prev) => {
+          if (prev) {
+            // Keep current selection if still present in list
+            const stillExists = list.find((a) => a.id === prev.id);
+            return stillExists || defaultAddr;
+          }
+          return defaultAddr;
+        });
+        setUseCustomAddress(false);
+      } else {
+        // No saved address: fallback to user default text or custom input
+        setUseCustomAddress(true);
+        setCustomAddress(user?.consumer_profile?.default_delivery_address || '');
+      }
+    } catch {
+      setUseCustomAddress(true);
+      setCustomAddress(user?.consumer_profile?.default_delivery_address || '');
+    }
+  };
+
+  useEffect(() => {
+    loadAddresses();
+  }, []);
+
+  const getEffectiveAddressString = () => {
+    if (useCustomAddress) {
+      return customAddress.trim();
+    }
+    if (selectedAddress) {
+      return selectedAddress.full_address || selectedAddress.street_address;
+    }
+    return '';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!address.trim()) {
-      setError('Please enter a delivery address.');
+    const effectiveAddress = getEffectiveAddressString();
+
+    if (!effectiveAddress) {
+      setError('Please select or enter a delivery address.');
       return;
     }
     setSubmitting(true);
     setError('');
 
-    const res = await checkout(address.trim(), paymentMethod);
+    const res = await checkout(effectiveAddress, paymentMethod);
     if (!res.success) {
       setError(res.error || 'Checkout failed');
       setSubmitting(false);
@@ -50,6 +102,17 @@ export default function Checkout() {
     }
 
     navigate('/orders', { state: { newOrderId: order?.id } });
+  };
+
+  const getTypeIcon = (type) => {
+    switch (type) {
+      case 'home':
+        return <Home size={15} />;
+      case 'office':
+        return <Briefcase size={15} />;
+      default:
+        return <MapPin size={15} />;
+    }
   };
 
   if (!cart?.items?.length) {
@@ -72,20 +135,113 @@ export default function Checkout() {
 
       <div className="checkout-layout">
         <form onSubmit={handleSubmit} className="checkout-form card">
-          <h2 className="title-sm">Delivery Details</h2>
-          <div className="form-group">
-            <label className="form-label" htmlFor="address">Delivery Address</label>
-            <textarea
-              id="address"
-              className="form-textarea"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="House no., street, city, pin code..."
-              required
-            />
+          {/* Section: Delivery Address like Swiggy / Blinkit */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <h2 className="title-sm" style={{ margin: 0 }}>Delivery Address</h2>
+            <button
+              type="button"
+              onClick={() => setModalOpen(true)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--primary)',
+                fontWeight: 700,
+                fontSize: '0.86rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <Plus size={15} />
+              <span>Manage / Add New</span>
+            </button>
           </div>
 
-          <h2 className="title-sm" style={{ marginTop: '8px' }}>Payment Method</h2>
+          {/* Quick Address Cards Selector (Home, Office, Other) */}
+          {addresses.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px', marginBottom: '14px' }}>
+              {addresses.map((addr) => {
+                const isSelected = !useCustomAddress && selectedAddress?.id === addr.id;
+                return (
+                  <div
+                    key={addr.id}
+                    onClick={() => {
+                      setSelectedAddress(addr);
+                      setUseCustomAddress(false);
+                    }}
+                    style={{
+                      border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border)',
+                      backgroundColor: isSelected ? 'var(--primary-subtle)' : 'var(--surface)',
+                      borderRadius: '12px',
+                      padding: '12px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      position: 'relative',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontSize: '0.74rem',
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          color: isSelected ? 'var(--primary)' : 'var(--text-secondary)',
+                        }}
+                      >
+                        {getTypeIcon(addr.address_type)}
+                        {addr.address_type}
+                      </span>
+                      {isSelected && <Check size={16} color="var(--primary)" />}
+                    </div>
+
+                    {addr.recipient_name && (
+                      <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                        {addr.recipient_name}
+                      </div>
+                    )}
+
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.3 }}>
+                      {addr.street_address}
+                      {addr.city && `, ${addr.city}`}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Fallback / Custom Address Entry Toggle */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer', marginBottom: '8px' }}>
+              <input
+                type="checkbox"
+                checked={useCustomAddress}
+                onChange={(e) => setUseCustomAddress(e.target.checked)}
+                style={{ width: '15px', height: '15px', accentColor: 'var(--primary)' }}
+              />
+              <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>Deliver to a different address for this order</span>
+            </label>
+
+            {useCustomAddress && (
+              <textarea
+                className="form-textarea"
+                rows="3"
+                value={customAddress}
+                onChange={(e) => setCustomAddress(e.target.value)}
+                placeholder="House no., street, landmark, city, pin code..."
+                required={useCustomAddress}
+              />
+            )}
+          </div>
+
+          <h2 className="title-sm" style={{ marginTop: '16px' }}>Payment Method</h2>
           <div className="payment-methods">
             {PAYMENT_METHODS.map(({ value, label, icon: Icon }) => (
               <label key={value} className={`payment-method ${paymentMethod === value ? 'payment-method--active' : ''}`}>
@@ -104,7 +260,7 @@ export default function Checkout() {
 
           {error && <p className="auth-error">{error}</p>}
 
-          <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%', marginTop: '16px' }} disabled={submitting}>
+          <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%', marginTop: '20px' }} disabled={submitting}>
             {submitting ? 'Placing Order...' : 'Place Order'}
             <ArrowRight size={18} />
           </button>
@@ -141,6 +297,22 @@ export default function Checkout() {
           </div>
         </aside>
       </div>
+
+      {/* Address Management Modal (Swiggy/Blinkit style) */}
+      <AddressModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        addresses={addresses}
+        selectedAddressId={selectedAddress?.id}
+        onSelectAddress={(addr) => {
+          setSelectedAddress(addr);
+          setUseCustomAddress(false);
+        }}
+        onAddressesUpdated={async () => {
+          await loadAddresses();
+          if (refreshUser) await refreshUser();
+        }}
+      />
     </div>
   );
 }

@@ -14,6 +14,7 @@ import '../styles/products.css';
 
 export default function ProductDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { addToCart } = useCart();
   const { isFarmer } = useAuth();
   const [product, setProduct] = useState(null);
@@ -23,6 +24,7 @@ export default function ProductDetail() {
   const [adding, setAdding] = useState(false);
   const [addedSuccess, setAddedSuccess] = useState(false);
   const [showTransparency, setShowTransparency] = useState(false);
+
 
   useEffect(() => {
     const load = async () => {
@@ -62,12 +64,14 @@ export default function ProductDetail() {
   const isOutOfStock = stock <= 0;
   const imageSrc = mediaUrl(product.image);
 
-  const navigate = useNavigate();
 
   const handleAddToCart = async () => {
-    if (isOutOfStock || isFarmer) return;
+    if (isOutOfStock) return;
+    const num = parseFloat(quantity);
+    const finalQty = (!isNaN(num) && num > 0) ? num : 1;
     setAdding(true);
-    const res = await addToCart(product.id, quantity);
+
+    const res = await addToCart(product.id, finalQty);
     setAdding(false);
     if (res.success) {
       setAddedSuccess(true);
@@ -283,47 +287,92 @@ export default function ProductDetail() {
           )}
 
           {/* Add to Cart Controller */}
-          {!isFarmer && (
-            <div className="flex items-center gap-4" style={{ marginBottom: '24px' }}>
-              <div className="flex items-center gap-2" style={{
-                backgroundColor: 'var(--surface)',
-                border: '2px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                padding: '4px 8px'
-              }}>
-                <button
-                  type="button"
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="btn-icon"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  <Minus size={16} />
-                </button>
-                <span style={{ fontSize: '1.1rem', fontWeight: 800, minWidth: '32px', textAlign: 'center' }}>
-                  {quantity}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setQuantity(Math.min(stock, quantity + 1))}
-                  className="btn-icon"
-                  disabled={quantity >= stock}
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  <Plus size={16} />
-                </button>
-              </div>
-
+          <div className="flex items-center gap-4" style={{ marginBottom: '24px' }}>
+            <div className="flex items-center gap-2" style={{
+              backgroundColor: 'var(--surface)',
+              border: '2px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '4px 8px'
+            }}>
               <button
                 type="button"
-                className={`btn ${addedSuccess ? 'btn-success' : 'btn-primary'} btn-lg flex-1`}
-                onClick={handleAddToCart}
-                disabled={isOutOfStock || adding}
+                onClick={() => {
+                  const current = parseFloat(quantity) || 1;
+                  const step = current <= 1 ? 0.25 : 1;
+                  const next = Math.max(0.01, parseFloat((current - step).toFixed(3)));
+                  setQuantity(next);
+                }}
+                className="btn-icon"
+                disabled={parseFloat(quantity) <= 0.05}
+                style={{ color: 'var(--text-secondary)' }}
+                title="Decrease quantity"
               >
-                <ShoppingBag size={18} />
-                <span>{addedSuccess ? 'Added to Cart!' : isOutOfStock ? 'Sold Out' : `Add ${quantity} ${product.unit} to Cart`}</span>
+                <Minus size={16} />
+              </button>
+              <input
+                type="number"
+                min="0.001"
+                max={stock > 0 ? stock : 1}
+                step="any"
+                value={quantity}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '') {
+                    setQuantity('');
+                  } else {
+                    const num = parseFloat(val);
+                    if (!isNaN(num)) {
+                      setQuantity(val);
+                    }
+                  }
+                }}
+                onBlur={() => {
+                  let num = parseFloat(quantity);
+                  if (isNaN(num) || num <= 0) num = 1;
+                  if (stock > 0 && num > stock) num = stock;
+                  setQuantity(num);
+                }}
+                style={{
+                  width: '64px',
+                  textAlign: 'center',
+                  fontSize: '1rem',
+                  fontWeight: 800,
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-main)',
+                  outline: 'none',
+                  padding: '2px 4px',
+                }}
+                title="Type quantity (e.g. 1.5, 0.5, 0.25)"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const current = parseFloat(quantity) || 0;
+                  const step = current < 1 ? 0.25 : 1;
+                  const next = Math.min(stock, parseFloat((current + step).toFixed(3)));
+                  setQuantity(next);
+                }}
+                className="btn-icon"
+                disabled={parseFloat(quantity) >= stock}
+                style={{ color: 'var(--text-secondary)' }}
+                title="Increase quantity"
+              >
+                <Plus size={16} />
               </button>
             </div>
-          )}
+
+            <button
+              type="button"
+              className={`btn ${addedSuccess ? 'btn-success' : 'btn-primary'} btn-lg flex-1`}
+              onClick={handleAddToCart}
+              disabled={isOutOfStock || adding}
+            >
+              <ShoppingBag size={18} />
+              <span>{addedSuccess ? 'Added to Cart!' : isOutOfStock ? 'Sold Out' : `Add ${quantity} ${product.unit} to Cart`}</span>
+            </button>
+          </div>
+
 
           {/* Eco-Impact Badge */}
           <div style={{

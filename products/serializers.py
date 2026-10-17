@@ -53,11 +53,16 @@ class ProductSerializer(serializers.ModelSerializer):
         return 0
 
     def get_avg_rating(self, obj):
+        if hasattr(obj, 'annotated_avg_rating'):
+            return round(obj.annotated_avg_rating, 1) if obj.annotated_avg_rating is not None else None
         avg = obj.reviews.aggregate(avg=Avg('rating'))['avg']
         return round(avg, 1) if avg is not None else None
 
     def get_review_count(self, obj):
+        if hasattr(obj, 'annotated_review_count'):
+            return obj.annotated_review_count
         return obj.reviews.count()
+
 
     def get_freshness(self, obj):
         latest_harvest = obj.harvest_records.order_by('-harvest_date').first()

@@ -9,33 +9,35 @@ from .serializers import (
     DeliverySerializer, DeliveryStatusUpdateSerializer, PaymentSerializer
 )
 from accounts.permissions import IsConsumer, IsFarmer
+from accounts.models import Consumer
 from products.models import Inventory
 
 
 class CartView(generics.RetrieveAPIView):
-    """Retrieves the active shopping cart for the logged-in consumer."""
+    """Retrieves the active shopping cart for the logged-in user."""
     serializer_class = CartSerializer
-    permission_classes = [permissions.IsAuthenticated, IsConsumer]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        cart, _ = Cart.objects.get_or_create(consumer=self.request.user.consumer_profile)
+        consumer, _ = Consumer.objects.get_or_create(user=self.request.user)
+        cart, _ = Cart.objects.get_or_create(consumer=consumer)
         return cart
 
 
 class CartItemViewSet(viewsets.ModelViewSet):
-    """Manages individual items inside the consumer's shopping cart."""
+    """Manages individual items inside the user's shopping cart."""
     serializer_class = CartItemSerializer
-    permission_classes = [permissions.IsAuthenticated, IsConsumer]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        if hasattr(self.request.user, 'consumer_profile'):
-            return CartItem.objects.filter(
-                cart__consumer=self.request.user.consumer_profile
-            ).select_related('product', 'product__farm', 'product__inventory')
-        return CartItem.objects.none()
+        consumer, _ = Consumer.objects.get_or_create(user=self.request.user)
+        return CartItem.objects.filter(
+            cart__consumer=consumer
+        ).select_related('product', 'product__farm', 'product__inventory')
 
     def perform_create(self, serializer):
-        cart, _ = Cart.objects.get_or_create(consumer=self.request.user.consumer_profile)
+        consumer, _ = Consumer.objects.get_or_create(user=self.request.user)
+        cart, _ = Cart.objects.get_or_create(consumer=consumer)
         product = serializer.validated_data['product']
         quantity = serializer.validated_data['quantity']
 
@@ -56,20 +58,21 @@ class CartItemViewSet(viewsets.ModelViewSet):
 
 
 class CartClearView(generics.GenericAPIView):
-    """Empties all items from the consumer's shopping cart."""
-    permission_classes = [permissions.IsAuthenticated, IsConsumer]
+    """Empties all items from the user's shopping cart."""
+    permission_classes = [permissions.IsAuthenticated]
 
     def delete(self, request, *args, **kwargs):
-        cart, _ = Cart.objects.get_or_create(consumer=request.user.consumer_profile)
+        consumer, _ = Consumer.objects.get_or_create(user=request.user)
+        cart, _ = Cart.objects.get_or_create(consumer=consumer)
         count = cart.items.count()
         cart.items.all().delete()
         return Response({"detail": f"Cleared {count} item(s) from your cart."}, status=status.HTTP_200_OK)
 
 
 class CheckoutView(generics.CreateAPIView):
-    """Converts the consumer's active cart into an Order using atomic locking."""
+    """Converts the user's active cart into an Order using atomic locking."""
     serializer_class = CheckoutSerializer
-    permission_classes = [permissions.IsAuthenticated, IsConsumer]
+    permission_classes = [permissions.IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data, context={'request': request})
@@ -79,18 +82,18 @@ class CheckoutView(generics.CreateAPIView):
 
 
 class OrderViewSet(viewsets.ReadOnlyModelViewSet):
-    """Allows consumers to view their order history and track fulfillment status."""
+    """Allows users to view their order history and track fulfillment status."""
     serializer_class = OrderSerializer
-    permission_classes = [permissions.IsAuthenticated, IsConsumer]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        if hasattr(self.request.user, 'consumer_profile'):
-            return Order.objects.filter(
-                consumer=self.request.user.consumer_profile
-            ).prefetch_related(
-                'items__product__farm', 'payment', 'delivery'
-            ).order_by('-placed_at')
-        return Order.objects.none()
+        consumer, _ = Consumer.objects.get_or_create(user=self.request.user)
+        return Order.objects.filter(
+            consumer=consumer
+        ).prefetch_related(
+            'items__product__farm', 'payment', 'delivery'
+        ).order_by('-placed_at')
+
 
     @action(detail=True, methods=['post'], url_path='cancel')
     def cancel_order(self, request, pk=None):

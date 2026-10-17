@@ -21,9 +21,10 @@ export default function ProductCard({ product, onShowTransparency }) {
 
   const handleAddToCart = async (e) => {
     e.preventDefault();
-    if (isOutOfStock || isFarmer) return;
+    if (isOutOfStock) return;
 
     setAdding(true);
+
     const res = await addToCart(product.id, 1);
     setAdding(false);
 
@@ -214,18 +215,17 @@ export default function ProductCard({ product, onShowTransparency }) {
           </span>
         </div>
 
-        {!isFarmer && (
-          <button
-            onClick={handleAddToCart}
-            disabled={isOutOfStock || adding}
-            className={`btn ${addedSuccess ? 'btn-success' : 'btn-primary'} btn-sm`}
-            style={{ padding: '8px 14px' }}
-          >
-            <ShoppingBag size={15} />
-            <span>{addedSuccess ? 'Added!' : isOutOfStock ? 'Sold Out' : 'Add to Cart'}</span>
-          </button>
-        )}
+        <button
+          onClick={handleAddToCart}
+          disabled={isOutOfStock || adding}
+          className={`btn ${addedSuccess ? 'btn-success' : 'btn-primary'} btn-sm`}
+          style={{ padding: '8px 14px' }}
+        >
+          <ShoppingBag size={15} />
+          <span>{addedSuccess ? 'Added!' : isOutOfStock ? 'Sold Out' : 'Add to Cart'}</span>
+        </button>
       </div>
     </div>
   );
 }
+

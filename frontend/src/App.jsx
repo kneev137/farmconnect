@@ -38,12 +38,14 @@ export default function App() {
       <main>
         <Routes>
           <Route path="/" element={<Home searchVal={searchVal} onSearchChange={setSearchVal} />} />
+          <Route path="/products" element={<Home searchVal={searchVal} onSearchChange={setSearchVal} />} />
           <Route path="/products/:id" element={<ProductDetail />} />
           <Route path="/farmers/:id" element={<FarmerProfile />} />
+
           <Route
             path="/checkout"
             element={
-              <ProtectedRoute roleRequired="consumer">
+              <ProtectedRoute>
                 <Checkout />
               </ProtectedRoute>
             }
@@ -51,11 +53,12 @@ export default function App() {
           <Route
             path="/orders"
             element={
-              <ProtectedRoute roleRequired="consumer">
+              <ProtectedRoute>
                 <Orders />
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/farmer/dashboard"
             element={

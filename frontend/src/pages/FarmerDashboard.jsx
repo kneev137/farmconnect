@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   LayoutDashboard, IndianRupee, Package, AlertTriangle,
-  Plus, Pencil, Trash2, Sprout, Truck, ClipboardList
+  Plus, Pencil, Trash2, Sprout, Truck, ClipboardList,
+  Upload, Image as ImageIcon
 } from 'lucide-react';
-import api from '../services/api';
+import api, { mediaUrl } from '../services/api';
 import '../styles/dashboard.css';
 
 const CATEGORIES = ['vegetable', 'fruit', 'grain', 'dairy', 'other'];
@@ -32,6 +33,8 @@ function MetricCard({ icon: Icon, label, value, accent }) {
 
 function ProductFormModal({ product, farms, onSave, onClose }) {
   const [form, setForm] = useState(product || { ...EMPTY_PRODUCT, farm: farms[0]?.id || '' });
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(product?.image ? mediaUrl(product.image) : null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const isEdit = !!product?.id;
@@ -41,26 +44,46 @@ function ProductFormModal({ product, farms, onSave, onClose }) {
     setForm({ ...form, [field]: val });
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
     setError('');
     try {
-      const payload = {
-        name: form.name,
-        category: form.category,
-        description: form.description,
-        price_per_unit: parseFloat(form.price_per_unit),
-        unit: form.unit,
-        farm: parseInt(form.farm, 10),
-        is_active: form.is_active,
-      };
-      if (!isEdit) payload.initial_stock = parseFloat(form.initial_stock || 0);
+      const formData = new FormData();
+      formData.append('name', form.name);
+      formData.append('category', form.category);
+      formData.append('description', form.description || '');
+      formData.append('price_per_unit', form.price_per_unit);
+      formData.append('unit', form.unit);
+      formData.append('farm', parseInt(form.farm, 10));
+      formData.append('is_active', form.is_active);
+
+      if (!isEdit) {
+        formData.append('initial_stock', form.initial_stock || '0');
+      }
+
+      if (imageFile) {
+        formData.append('image', imageFile);
+      }
 
       if (isEdit) {
-        await api.patch(`/products/${product.id}/`, payload);
+        await api.request(`/products/${product.id}/`, {
+          method: 'PATCH',
+          body: formData,
+        });
       } else {
-        await api.post('/products/', payload);
+        await api.request('/products/', {
+          method: 'POST',
+          body: formData,
+        });
       }
       onSave();
       onClose();
@@ -73,32 +96,32 @@ function ProductFormModal({ product, farms, onSave, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto' }}>
         <h2 className="title-md" style={{ marginBottom: '16px' }}>
           {isEdit ? 'Edit Product' : 'Add New Product'}
         </h2>
         <form onSubmit={handleSubmit}>
           <div className="dashboard-form-grid">
             <div className="form-group">
-              <label className="form-label">Name</label>
-              <input className="form-input" value={form.name} onChange={update('name')} required />
+              <label className="form-label">Name *</label>
+              <input className="form-input" value={form.name} onChange={update('name')} required placeholder="e.g. Organic Tomatoes" />
             </div>
             <div className="form-group">
-              <label className="form-label">Category</label>
+              <label className="form-label">Category *</label>
               <select className="form-select" value={form.category} onChange={update('category')}>
                 {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">Price (₹)</label>
-              <input type="number" step="0.01" className="form-input" value={form.price_per_unit} onChange={update('price_per_unit')} required />
+              <label className="form-label">Price (₹) *</label>
+              <input type="number" step="0.01" min="0.01" className="form-input" value={form.price_per_unit} onChange={update('price_per_unit')} required placeholder="e.g. 40.00" />
             </div>
             <div className="form-group">
-              <label className="form-label">Unit</label>
-              <input className="form-input" value={form.unit} onChange={update('unit')} placeholder="kg, dozen, litre" required />
+              <label className="form-label">Unit *</label>
+              <input className="form-input" value={form.unit} onChange={update('unit')} placeholder="kg, dozen, litre, g" required />
             </div>
             <div className="form-group">
-              <label className="form-label">Farm</label>
+              <label className="form-label">Farm *</label>
               <select className="form-select" value={form.farm} onChange={update('farm')} required>
                 {farms.map((f) => <option key={f.id} value={f.id}>{f.name} — {f.location}</option>)}
               </select>
@@ -106,20 +129,89 @@ function ProductFormModal({ product, farms, onSave, onClose }) {
             {!isEdit && (
               <div className="form-group">
                 <label className="form-label">Initial Stock</label>
-                <input type="number" className="form-input" value={form.initial_stock} onChange={update('initial_stock')} />
+                <input type="number" step="any" min="0" className="form-input" value={form.initial_stock} onChange={update('initial_stock')} placeholder="e.g. 25" />
               </div>
             )}
           </div>
-          <div className="form-group">
-            <label className="form-label">Description</label>
-            <textarea className="form-textarea" value={form.description} onChange={update('description')} />
+
+          {/* Product Picture Upload */}
+          <div className="form-group" style={{ marginTop: '4px' }}>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <ImageIcon size={16} /> Product Picture
+            </label>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              padding: '14px',
+              border: '2px dashed var(--border)',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--surface-alt)'
+            }}>
+              {imagePreview ? (
+                <div style={{
+                  width: '72px',
+                  height: '72px',
+                  borderRadius: 'var(--radius-sm)',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                  border: '1px solid var(--border)'
+                }}>
+                  <img src={imagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              ) : (
+                <div style={{
+                  width: '72px',
+                  height: '72px',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--surface-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--text-muted)',
+                  flexShrink: 0,
+                  border: '1px solid var(--border)'
+                }}>
+                  <ImageIcon size={30} />
+                </div>
+              )}
+
+              <div style={{ flex: 1 }}>
+                <input
+                  type="file"
+                  id="product-image-upload"
+                  accept="image/png, image/jpeg, image/webp"
+                  onChange={handleImageChange}
+                  style={{ display: 'none' }}
+                />
+                <label
+                  htmlFor="product-image-upload"
+                  className="btn btn-outline btn-sm"
+                  style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Upload size={14} />
+                  <span>{imagePreview ? 'Change Picture' : 'Upload Picture'}</span>
+                </label>
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Supports PNG, JPG, or WEBP (Max 5MB)
+                </div>
+              </div>
+            </div>
           </div>
-          <label className="filter-checkbox">
+
+          <div className="form-group" style={{ marginTop: '8px' }}>
+            <label className="form-label">Description</label>
+            <textarea className="form-textarea" rows="2" value={form.description} onChange={update('description')} placeholder="Fresh organic produce details, farm harvesting notes..." />
+          </div>
+
+          <label className="filter-checkbox" style={{ marginTop: '6px' }}>
             <input type="checkbox" checked={form.is_active} onChange={update('is_active')} />
-            <span>Active listing</span>
+            <span>Active listing (visible in marketplace)</span>
           </label>
-          {error && <p className="auth-error">{error}</p>}
-          <div className="flex gap-2" style={{ marginTop: '16px' }}>
+
+          {error && <p className="auth-error" style={{ marginTop: '10px' }}>{error}</p>}
+
+          <div className="flex gap-2" style={{ marginTop: '20px' }}>
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Saving...' : isEdit ? 'Update Product' : 'Create Product'}
